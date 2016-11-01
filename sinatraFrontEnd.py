@@ -15,12 +15,10 @@ class sinatraFrontEnd(sMC.sinatraMainClass):
 		pass;
 	def gatherFeaturesDataFE(self):
 		pass;
-	def segmentate(self, sAI):
+	def segmentate(self, aD):
 		#
-		#	The purpose of this method is not but to find the frequence of
-		#	accent in words. We all know that French words have always the
-		#	accent in the last syllable, meanwhile it can be found in different
-		#	places in spanish or english. The way to find this should be easy.
+		#	segmentate allows the Front End to find which are the pieces of the
+		#	speech.
 		#		1 - Clean the sound. We guess that high frequency
 		#			sounds are not important for the accent. So,
 		#			we need to perform a fourier transform, remove
@@ -31,8 +29,6 @@ class sinatraFrontEnd(sMC.sinatraMainClass):
 		#			differents minimums and maximums can be found. An approach
 		#			could be to split the sound in intervals and perform the
 		#			derivatives only with the maximum values of each interval.
-		#		3 - It should be possible to rebuild the frequency of the
-		#			accents from some fourier transform or alike.
 		#
 		#
 		#	coeffCleaning : treshold under which fourier transformed frequencies
@@ -42,10 +38,11 @@ class sinatraFrontEnd(sMC.sinatraMainClass):
 
 		import numpy as np;
 		coeffCleaning = 3;
-		wS = 750;
+		wS = 600;
 		rowL = 10000;
-		aD = sAI.nextAudio();
+		print("reading {0}".format(aD.getName()));
 		aD = aD.getAudio();
+		print("\tremoving high frequencies");
 		splitNumber = int(len(aD)/wS);
 		aDTransformed = np.fft.fft(aD);
 		meanADTransformed = np.mean(np.absolute(aDTransformed));
@@ -53,20 +50,24 @@ class sinatraFrontEnd(sMC.sinatraMainClass):
 		aDTransformed[20000:] = 0;
 		aDClean = np.fft.ifft(aDTransformed);
 		aDClean = np.real(aDClean);
+		print("\tfiltering");
 		aCY = np.zeros(splitNumber); aCX = np.zeros(splitNumber);
 		fD = np.zeros(splitNumber-2); sD = np.zeros(splitNumber-2);
 		for splitIter in range(splitNumber):
 			aCX[splitIter] = (splitIter - 0.5)*wS;
 			aCY[splitIter] = max(aDClean[(wS*(splitIter)):(wS*(splitIter+1))]);
 		aCY = aCY * 2;
+		print("\tprocessing first and second order derivatives");
 		for derIter in range(1, splitNumber-2):
 			fD[derIter] = (aCY[derIter+1]-aCY[derIter-1])/2;
 			sD[derIter] = (1/4)*(aCY[derIter + 1] + aCY[derIter - 1] - 2*aCY[derIter]);
+		print("\tsegmentating");
 		statusMin = 0;
 		statusMax = 0;
 		cutPoints = [0, 0];
 		rowControl = 1;
 		matrixX = np.zeros(rowL);
+		testArray = np.zeros(2);
 		for sIter in range(2, splitNumber-3):
 			if (fD[sIter]*fD[sIter+1]) < 0:
 				if 0.5*(sD[sIter]+sD[sIter + 1]) > 0:
@@ -81,10 +82,18 @@ class sinatraFrontEnd(sMC.sinatraMainClass):
 				tokkenL = int(cutPoints[1]-cutPoints[0] + 1);
 				if (tokkenL > 1000) and (tokkenL < 10000):
 					rowX[1:tokkenL] = aDClean[int(cutPoints[0]):int(cutPoints[1])];
+					tempTestArray = testArray;
 					rowControl = rowControl + 1;
+					testArray = np.zeros((rowControl, 2));
+					testArray[0:(rowControl-1),:] = tempTestArray;
+					testArray[rowControl-1, 0] = cutPoints[0];
+					testArray[rowControl-1, 1] = cutPoints[1];
 					tempMatrixX = matrixX;
 					matrixX = np.zeros((rowControl, rowL))
 					matrixX[0:(rowControl - 1), :] = tempMatrixX;
 					matrixX[(rowControl - 1), :] = rowX;
 				cutPoints[0] = cutPoints[1];
-		return matrixX;
+		print("task completed");
+		matrixX = matrixX[1:,:];
+		testArray = testArray[1:,:];
+		return matrixX, testArray, (rowControl - 1);
