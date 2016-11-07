@@ -11,6 +11,13 @@ class sinatraIO(sMC.sinatraMainClass):
 		self._sinatraMainClass__className = 'sinatraIO';
 		self.__input = input;
 		self.__path = dirname(self.__input);
+	def __iter__(self):
+		return self;
+	def __next__(self):
+		try:
+			return self.nextAudio();
+		except IndexError:
+			return 0;
 	def getInput(self):
 		return self.__input;
 	def getPath(self):
@@ -46,6 +53,10 @@ class sinatraIO(sMC.sinatraMainClass):
 		name2purge = sorted(self.__audio.keys());
 		name2purge = name2purge.pop();
 		audio2purge = self.__audio.pop(name2purge);
+		try:
+			audio2purge = audio2purge[:,0];
+		except IndexError:
+			pass;
 		freq2purge = self.__freq.pop(name2purge);
 		class2purge = self.__class.pop(name2purge);
 		return sA.sinatraAudio(name2purge, class2purge, audio2purge, freq2purge);

@@ -1,20 +1,57 @@
 import sinatraMainClass as sMC;
 class sinatraFrontEnd(sMC.sinatraMainClass):
 	def __init__(self):
+		import numpy as np;
 		self._sinatraMainClass__className = 'sinatraAudio';
-	def gatherSilenceDataFETraining(self, sAI):
+		self.__trainingRows = np.zeros((1, 10000));
+		self.__trainingClass = np.zeros((1,1));
+	def gatherTrainData(self, aD):
+		import numpy as np;
+		trainMatrix , thing1, thing2= self.segmentate(aD);
+		rowNumber = len(trainMatrix[:,0]);
+		classArray = np.ones(rowNumber) * aD.getlClass();
+		temp = self.__trainingRows;
+		newMatrix = np.zeros((rowNumber + len(temp[:,0]), len(temp[0,:]) ));
+		newMatrix[0:(len(temp[:,0])),:] = temp;
+		newMatrix[(len(temp[:,0])):, :] = trainMatrix;
+		self.__trainingRows =newMatrix;
+		temp = self.__trainingClass;
+		newArray = np.zeros(len(temp) + len(classArray));
+		newArray[0:len(temp)] = temp;
+		newArray[len(temp):] = classArray;
+		self.__trainingClass = newArray;
+		return 1;
+	def getTrainData(self):
+		return self.__trainingRows, self.__trainingClass;
+	def trainModel(self):
+		from sklearn.neural_network import MLPClassifier;
+		print("creating nn");
+		nn = MLPClassifier(solver='lbgfs', alpha=1e-5, hidden_layer_sizes=(5,2), random_state=1);
+		print("starting training");
+		nn.fit(self.__trainingRows, self.__trainingClass);
+		print("finishing training");
+		self.__nn = nn;
+		return 1;
+	def predict(self, aD):
+		import numpy as np;
+		predictMatrix, thing1, thing2 = self.segmentate(aD);
+		res1 = np.zeros(len(predictMatrix[:,0]));
+		for iter in range(len(predictMatrix[:,0])):
+			res1[iter] = self.__nn.predict(predictMatrix[:,iter]);
+		return res1;
+	def normalize(self, aD):
 		#
-		#	The purpose of this method is to difference silence from sound
-		#	in order to split in a scientific way the audio, to perform
-		#	further analysis over data. This method also should allow us to
-		#	gather some data (cadence time).
-		# sAI : Sinatra Audio Instance
-		if sAI is sinatraAudio:
-			print ("\tprocessing {0}".format(sAI.getName));
-	def trainSilenceFE(self):
-		pass;
-	def gatherFeaturesDataFE(self):
-		pass;
+		#
+		#
+		#
+		import sinatraIO;
+		import numpy as np;
+		aFAD = aD.getAudio();
+		meanAFAD = np.mean(aFAD);
+		stdAFAD = np.std(aFAD);
+		aFAD = (aFAD - meanAFAD)/stdAFAD;
+		aD.modAudio(aFAD);
+		return 1;
 	def segmentate(self, aD):
 		#
 		#	segmentate allows the Front End to find which are the pieces of the
@@ -37,10 +74,11 @@ class sinatraFrontEnd(sMC.sinatraMainClass):
 		import sinatraIO;
 
 		import numpy as np;
-		coeffCleaning = 3;
-		wS = 600;
-		rowL = 10000;
+		coeffCleaning = 1.5;
+		wS = 700;
+		rowL = 5000;
 		print("reading {0}".format(aD.getName()));
+		self.normalize(aD);
 		aD = aD.getAudio();
 		print("\tremoving high frequencies");
 		splitNumber = int(len(aD)/wS);
@@ -70,7 +108,7 @@ class sinatraFrontEnd(sMC.sinatraMainClass):
 		testArray = np.zeros(2);
 		for sIter in range(2, splitNumber-3):
 			if (fD[sIter]*fD[sIter+1]) < 0:
-				if 0.5*(sD[sIter]+sD[sIter + 1]) > 0:
+				if 0.5*(sD[sIter]+sD[sIter + 1]) < 0:
 					cutPoints[statusMin]=aCX[sIter];
 					statusMin = statusMin + 1;
 				else:
@@ -80,7 +118,7 @@ class sinatraFrontEnd(sMC.sinatraMainClass):
 				statusMax = 0;
 				rowX = np.zeros(rowL);
 				tokkenL = int(cutPoints[1]-cutPoints[0] + 1);
-				if (tokkenL > 1000) and (tokkenL < 10000):
+				if (tokkenL > 500) and (tokkenL < rowL):
 					rowX[1:tokkenL] = aDClean[int(cutPoints[0]):int(cutPoints[1])];
 					tempTestArray = testArray;
 					rowControl = rowControl + 1;

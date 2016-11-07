@@ -10,9 +10,9 @@ class sinatraAudio(sMC.sinatraMainClass):
 		return (self.__name);
 	def getlClass(self):
 		return (self.__lClass);
-	def getlClass (self):
-		return (self.__lClass);
 	def getAudio (self):
 		return (self.__audio);
 	def getFreq (self):
 		return (self.__freq);
+	def modAudio(self, aD):
+		self.__audio = aD;
