@@ -56,3 +56,12 @@ class sinatraFiltersBox(sMC.sinatraMainClass):
 
 		aCY = mACY*lACY;
 		return aCX, aCY;
+	def softenedMaxWindow(self, audioArray, wS):
+		import numpy as np;
+		import math;
+		wN, aCX, aCY = self._guessSize(audioArray, wS);
+		for fIter in range(1,wN-1):
+			aCY[fIter] = np.max(audioArray[(fIter*wS):(fIter+1)*wS]);
+			aCY[fIter] = aCY[fIter] + 0.5*np.max(audioArray[((fIter-1)*wS):(fIter)*wS]);
+			aCY[fIter] = aCY[fIter] + 0.5*np.max(audioArray[((fIter+1)*wS):(fIter+2)*wS]);
+		return aCX, aCY;
