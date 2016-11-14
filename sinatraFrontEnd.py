@@ -3,7 +3,7 @@ class sinatraFrontEnd(sMC.sinatraMainClass):
 	def __init__(self):
 		import numpy as np;
 		self._sinatraMainClass__className = 'sinatraAudio';
-		self.__trainingRows = np.zeros((1, 10000));
+		self.__trainingRows = np.zeros((1, 35));
 		self.__trainingClass = np.zeros((1,1));
 	def gatherTrainData(self, aD):
 		import numpy as np;
@@ -26,7 +26,7 @@ class sinatraFrontEnd(sMC.sinatraMainClass):
 	def trainModel(self):
 		from sklearn.neural_network import MLPClassifier;
 		print("creating nn");
-		nn = MLPClassifier(solver='lbgfs', alpha=1e-5, hidden_layer_sizes=(5,2), random_state=1);
+		nn = MLPClassifier(solver='lbgfs', alpha=1e-5, hidden_layer_sizes=(10,), random_state=1);
 		print("starting training");
 		nn.fit(self.__trainingRows, self.__trainingClass);
 		print("finishing training");
@@ -37,7 +37,9 @@ class sinatraFrontEnd(sMC.sinatraMainClass):
 		predictMatrix, thing1, thing2 = self.segmentate(aD);
 		res1 = np.zeros(len(predictMatrix[:,0]));
 		for iter in range(len(predictMatrix[:,0])):
-			res1[iter] = self.__nn.predict(predictMatrix[:,iter]);
+			row2predict = predictMatrix[iter,:];
+			row2predict = row2predict.reshape(1,-1);
+			res1[iter] = self.__nn.predict(row2predict);
 		return res1;
 	def normalize(self, aD):
 		#
@@ -72,11 +74,12 @@ class sinatraFrontEnd(sMC.sinatraMainClass):
 		#					are removed
 		#	wS	: window-size
 		import sinatraIO;
-
+		import sinatraFilter;
 		import numpy as np;
+		filterBox = sinatraFilter.sinatraFiltersBox();
 		coeffCleaning = 1.5;
-		wS = 700;
-		rowL = 5000;
+		wS = 800;
+		rowL = 10000;
 		print("reading {0}".format(aD.getName()));
 		self.normalize(aD);
 		aD = aD.getAudio();
@@ -88,13 +91,14 @@ class sinatraFrontEnd(sMC.sinatraMainClass):
 		aDTransformed[20000:] = 0;
 		aDClean = np.fft.ifft(aDTransformed);
 		aDClean = np.real(aDClean);
+		#aDClean = aD;
 		print("\tfiltering");
+		#y,z,n = filterBox.entropyInWindow(aDClean, 750);
+		#aDClean = aDClean*(n>=1);
 		aCY = np.zeros(splitNumber); aCX = np.zeros(splitNumber);
 		fD = np.zeros(splitNumber-2); sD = np.zeros(splitNumber-2);
-		for splitIter in range(splitNumber):
-			aCX[splitIter] = (splitIter - 0.5)*wS;
-			aCY[splitIter] = max(aDClean[(wS*(splitIter)):(wS*(splitIter+1))]);
-		aCY = aCY * 2;
+		aCX, aCY = filterBox.filterMaxInWindow(aDClean, wS);
+		aCY = aCY ** 2;
 		print("\tprocessing first and second order derivatives");
 		for derIter in range(1, splitNumber-2):
 			fD[derIter] = (aCY[derIter+1]-aCY[derIter-1])/2;
@@ -104,11 +108,11 @@ class sinatraFrontEnd(sMC.sinatraMainClass):
 		statusMax = 0;
 		cutPoints = [0, 0];
 		rowControl = 1;
-		matrixX = np.zeros(rowL);
+		matrixX = np.zeros(35);
 		testArray = np.zeros(2);
 		for sIter in range(2, splitNumber-3):
-			if (fD[sIter]*fD[sIter+1]) < 0:
-				if 0.5*(sD[sIter]+sD[sIter + 1]) < 0:
+			if (fD[sIter]*fD[sIter+1]) <= 0:
+				if (sD[sIter]+sD[sIter + 1]) > 0:
 					cutPoints[statusMin]=aCX[sIter];
 					statusMin = statusMin + 1;
 				else:
@@ -120,6 +124,7 @@ class sinatraFrontEnd(sMC.sinatraMainClass):
 				tokkenL = int(cutPoints[1]-cutPoints[0] + 1);
 				if (tokkenL > 500) and (tokkenL < rowL):
 					rowX[1:tokkenL] = aDClean[int(cutPoints[0]):int(cutPoints[1])];
+					rowX = self.extractFeatures(rowX);
 					tempTestArray = testArray;
 					rowControl = rowControl + 1;
 					testArray = np.zeros((rowControl, 2));
@@ -127,7 +132,7 @@ class sinatraFrontEnd(sMC.sinatraMainClass):
 					testArray[rowControl-1, 0] = cutPoints[0];
 					testArray[rowControl-1, 1] = cutPoints[1];
 					tempMatrixX = matrixX;
-					matrixX = np.zeros((rowControl, rowL))
+					matrixX = np.zeros((rowControl, 35))
 					matrixX[0:(rowControl - 1), :] = tempMatrixX;
 					matrixX[(rowControl - 1), :] = rowX;
 				cutPoints[0] = cutPoints[1];
@@ -135,3 +140,26 @@ class sinatraFrontEnd(sMC.sinatraMainClass):
 		matrixX = matrixX[1:,:];
 		testArray = testArray[1:,:];
 		return matrixX, testArray, (rowControl - 1);
+
+	def extractFeatures(self, tokken):
+		import sinatraFilter as sF;
+		import numpy as np;
+		filterBox = sF.sinatraFiltersBox();
+		wS = int(len(tokken) / 10);
+		featureVector = list();
+		featureBox = {};
+		featureBox['mean'] = np.mean(tokken);
+		featureBox['std'] = np.std(tokken);
+		featureBox['len'] = len(tokken)
+		featureBox['meanPositive'] = np.mean(tokken[tokken > 0]);
+		featureBox['meanNegative'] = np.mean(tokken[tokken < 0]);
+		x, featureBox['XmaxFilter'] = filterBox.filterMaxInWindow(tokken, wS);
+		x, featureBox['XsoftMaxFilter'] = filterBox.softenedMaxWindow(tokken,wS);
+		x, featureBox['XmeanLogAvWindow'] = filterBox.sumAbsWindow(tokken,wS);
+		for fkeys, feature in sorted(featureBox.items()):
+			if fkeys[0]=='X':
+				for intIter in feature:
+					featureVector.append(intIter);
+			else:
+				featureVector.append(feature);
+		return featureVector;
