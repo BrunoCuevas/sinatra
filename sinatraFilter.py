@@ -32,7 +32,7 @@ class sinatraFiltersBox(sMC.sinatraMainClass):
 		import numpy as np;
 		wN, aCX, aCY = self._guessSize(audioArray, wS);
 		for fIter in range(wN):
-			aCY[fIter] = np.mean(audioArray[(fIter*wS):(fIter+1)*wS]);
+			aCY[fIter] = np.mean(np.mean(audioArray[(fIter*wS):(fIter+1)*wS]));
 		return aCX, aCY;
 	def averagePositiveWindow(self, audioArray, wS):
 		import numpy as np;
@@ -85,16 +85,27 @@ class sinatraFiltersBox(sMC.sinatraMainClass):
 		mCY = np.zeros(len(aCY));
 		for iter in range(1,wN-1):
 			for preIter in range(iter):
-				mCY[iter] = mCY[iter] + (math.exp(0.65*(preIter - iter))*aCY[preIter]);
+				mCY[iter] = mCY[iter] + (math.exp(0.2*(preIter - iter))*aCY[preIter]);
 			for postIter in range(iter, len(mCY)):
-				mCY[iter] = mCY[iter] + (math.exp(0.65*(iter - postIter))*aCY[postIter]);
+				mCY[iter] = mCY[iter] + (math.exp(0.2*(iter - postIter))*aCY[postIter]);
 		return aCX, mCY;
 	def entropyInWindow(self, audioArray, wS):
 		import numpy as np;
 		import math;
 		import scipy.stats as ss;
-		sample = audioArray[5000:];
-		pValues = np.array([0.001, 0.01, 0.1, 0.5, 0.90, 0.99, 0.999]);
+		sample = np.zeros(5000);
+		#sample[:2500] = audioArray[:2500];
+		#sample[2500:] = audioArray[(len(audioArray)-2500):];
+		minMV = 1000;
+		cutPoint = 0;
+		for iter in range(len(audioArray)-5000):
+			mV = np.sum(np.abs(audioArray[iter:iter+5000]));
+			if mV < minMV:
+				minMV = mV;
+				cutPoint = iter;
+		sample = audioArray[cutPoint:cutPoint + 5000];
+		pValues = np.array([1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9, 1e-10, 1e-11, 1e-12, 1e-13, 1e-14, 1e-15, 1e-16, 1e-17, 1e-18]);
+		pValues = 1 - pValues;
 		qValues = ss.norm.ppf(pValues, np.mean(sample), np.std(sample));
 		qValues[0] = 0;
 		pArray = np.zeros(len(audioArray));
@@ -106,3 +117,36 @@ class sinatraFiltersBox(sMC.sinatraMainClass):
 			aCY[iter] = np.max(pArray[iter*wS:(iter+1)*wS]);
 			pArray[iter*wS:(iter+1)*wS] = aCY[iter];
 		return aCX, aCY, pArray;
+	def smoother(self, audioArray, degree, iterations):
+		import numpy as np;
+		import math;
+		lA = len(audioArray);
+		aD = audioArray[:];
+
+		try :
+			aD = aD[:,0];
+		except IndexError:
+			pass;
+		aD = aD*(aD > 0);
+		mX = np.zeros(lA);
+		if degree % 2 == 0 :
+			print("ERROR : degree must be odd\n");
+		else :
+			boundaryUp = int(degree/2);
+			boundaryDn = lA - int(degree/2);
+			for rec in range(iterations):
+				for iter in range(boundaryUp, boundaryDn ):
+
+					mX[iter] = np.mean(aD[(iter-boundaryUp):(iter+boundaryUp)]);
+				aD = mX;
+		return aD;
+	def shiftedFilterMaxInWindow(self, audioArray, wS, shift):
+		import numpy as np;
+		import math;
+		aCX, aCY = self.filterMaxInWindow(audioArray, wS);
+		tempArray = audioArray[shift:];
+		audioArray[:len(audioArray)-shift] = tempArray;
+		bCX, bCY = self.filterMaxInWindow(audioArray, wS);
+		cCX = (aCX + bCX)/2;
+		cCY = (aCY + bCY)/2;
+		return cCX, cCY;
