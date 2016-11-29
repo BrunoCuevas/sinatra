@@ -85,9 +85,9 @@ class sinatraFiltersBox(sMC.sinatraMainClass):
 		mCY = np.zeros(len(aCY));
 		for iter in range(1,wN-1):
 			for preIter in range(iter):
-				mCY[iter] = mCY[iter] + (math.exp(0.2*(preIter - iter))*aCY[preIter]);
+				mCY[iter] = mCY[iter] + (math.exp(0.5*(preIter - iter))*aCY[preIter]);
 			for postIter in range(iter, len(mCY)):
-				mCY[iter] = mCY[iter] + (math.exp(0.2*(iter - postIter))*aCY[postIter]);
+				mCY[iter] = mCY[iter] + (math.exp(0.5*(iter - postIter))*aCY[postIter]);
 		return aCX, mCY;
 	def entropyInWindow(self, audioArray, wS):
 		import numpy as np;

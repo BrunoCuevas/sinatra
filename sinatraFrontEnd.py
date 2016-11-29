@@ -100,25 +100,37 @@ class sinatraFrontEnd(sMC.sinatraMainClass):
 					aCX, aCY = filterBox.exponentialDecay(audioTokken, wS);
 					fD = filterBox.firstDerivative(aCY);
 					sD = filterBox.secondDerivative(aCY);
-					cStart = start;
+					cutPoints = np.array([start]);
 					for tIter in range(len(aCX)-1):
 						if fD[tIter]*fD[tIter+1]<0:
 							if ((sD[tIter] + sD[tIter + 1])*0.5) < 0:
 								maxControl = 1;
 							else:
-								minControl = 1;
-					if (maxControl==1):
-						cutPoints = np.array([start, end]);
-						tokkenLength = cutPoints[1]-cutPoints[0];
-						tokkenRow = np.zeros(tokkenLength);
-						tokkenRow = aDClean[cutPoints[0]:cutPoints[1]];
+								if (maxControl == 1) :
+									cutPoints=np.append(cutPoints,aCX[tIter]+start);
+									maxControl = 0;
+								else:
+									print("something weird took place...!");
+					cutPoints=np.append(cutPoints, end);
+					print(cutPoints);
+					for uIter in range(len(cutPoints)-1):
+						print("are we inside the loop");
+						currentPoints = np.array([cutPoints[uIter], cutPoints[uIter+1]]);
+						print("current points are {0} and {1}".format(currentPoints[0], currentPoints[1]));
+						tokkenLength = currentPoints[1]-currentPoints[0];
+						try:
+							tokkenRow = np.zeros(tokkenLength);
+						except ValueError:
+							print(tokkenLength);
+							exit;
+						tokkenRow = aDClean[int(currentPoints[0]):int(currentPoints[1])];
 						tokkenInfo = self.extractFeatures(tokkenRow);
 						tempTestArray = testArray;
 						rowControl = rowControl + 1;
 						testArray = np.zeros((rowControl, 2));
 						testArray[0:(rowControl-1),:] = tempTestArray;
-						testArray[rowControl-1, 0] = start;
-						testArray[rowControl-1, 1] = end;
+						testArray[rowControl-1, 0] = currentPoints[0];
+						testArray[rowControl-1, 1] = currentPoints[1];
 						tempMatrixX = matrixX;
 						matrixX = np.zeros((rowControl, 35))
 						matrixX[0:(rowControl - 1), :] = tempMatrixX;
