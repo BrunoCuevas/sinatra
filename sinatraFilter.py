@@ -150,3 +150,17 @@ class sinatraFiltersBox(sMC.sinatraMainClass):
 		cCX = (aCX + bCX)/2;
 		cCY = (aCY + bCY)/2;
 		return cCX, cCY;
+	def averageMFCC(self, mfcc, parts):
+		import numpy as np;
+		import math;
+		inc = len(mfcc)/parts;
+		vector = np.zeros(parts);
+		if len(mfcc) < parts:
+			vector[:(len(mfcc))]=mfcc;
+			return vector;
+		else:
+			for iter in range(parts):
+				incDown = int(inc * iter);
+				incUp	= int(inc*(iter+1));
+				vector[iter] = np.mean(mfcc[incDown:incUp]);
+			return vector;

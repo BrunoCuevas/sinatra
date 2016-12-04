@@ -3,7 +3,7 @@ class sinatraFrontEnd(sMC.sinatraMainClass):
 	def __init__(self):
 		import numpy as np;
 		self._sinatraMainClass__className = 'sinatraAudio';
-		self.__trainingRows = np.zeros((1, 35));
+		self.__trainingRows = np.zeros((1,130)); 
 		self.__trainingClass = np.zeros((1,1));
 	def gatherTrainData(self, aD):
 		import numpy as np;
@@ -12,6 +12,7 @@ class sinatraFrontEnd(sMC.sinatraMainClass):
 			rowNumber = len(trainMatrix[:,0]);
 		except TypeError:
 			return 1;
+		
 		classArray = np.ones(rowNumber) * aD.getlClass();
 		temp = self.__trainingRows;
 		newMatrix = np.zeros((rowNumber + len(temp[:,0]), len(temp[0,:]) ));
@@ -26,6 +27,23 @@ class sinatraFrontEnd(sMC.sinatraMainClass):
 		return 1;
 	def getTrainData(self):
 		return self.__trainingRows, self.__trainingClass;
+	def writeTrainData(self,name):
+		import numpy as np;
+		f = open(name, 'w+');
+		head="";
+		for iter in range(130):
+			head=head+"s{0}\t".format(iter);
+		head=head+"class\n";
+		f.write(str(head));
+		f.close()
+		f = open(name, 'ab');
+		for iter in range(len(self.__trainingRows)):
+			row2write = np.zeros(131);
+			row2write[0:130]=self.__trainingRows[iter];
+			row2write[130]	=self.__trainingClass[iter];
+			np.savetxt(f,row2write.reshape(1,-1),fmt="%7.4f", delimiter="\t");
+		f.close();
+		return 1;
 	def trainModel(self):
 		#from sklearn.neural_network import MLPClassifier;
 		from sklearn import linear_model;
@@ -74,6 +92,7 @@ class sinatraFrontEnd(sMC.sinatraMainClass):
 		rowL = 10000;
 		rowControl = 1;
 		print("reading {0}".format(aD.getName()));
+		freqVal = aD.getFreq();
 		self.normalize(aD);
 		aD = aD.getAudio();
 		aD = aD[5000:];
@@ -84,7 +103,7 @@ class sinatraFrontEnd(sMC.sinatraMainClass):
 		yE,zE,nE = filterBox.entropyInWindow(aDClean, 1400);
 		del yE; del zE;
 		statusStart = 0;
-		matrixX = np.zeros(35);
+		matrixX = np.zeros(130);
 		testArray = np.zeros(2);
 		for sIter in range(2, len(aD)-3):
 			if statusStart == 0 and nE[sIter] >= 14:
@@ -124,7 +143,9 @@ class sinatraFrontEnd(sMC.sinatraMainClass):
 							print(tokkenLength);
 							exit;
 						tokkenRow = aDClean[int(currentPoints[0]):int(currentPoints[1])];
-						tokkenInfo = self.extractFeatures(tokkenRow);
+
+						tokkenInfo = self.extractFeatures(tokkenRow, freqVal);
+						
 						tempTestArray = testArray;
 						rowControl = rowControl + 1;
 						testArray = np.zeros((rowControl, 2));
@@ -132,7 +153,7 @@ class sinatraFrontEnd(sMC.sinatraMainClass):
 						testArray[rowControl-1, 0] = currentPoints[0];
 						testArray[rowControl-1, 1] = currentPoints[1];
 						tempMatrixX = matrixX;
-						matrixX = np.zeros((rowControl, 35))
+						matrixX = np.zeros((rowControl, 130))
 						matrixX[0:(rowControl - 1), :] = tempMatrixX;
 						matrixX[(rowControl - 1), :] = tokkenInfo;
 						maxControl = 0;
@@ -151,25 +172,20 @@ class sinatraFrontEnd(sMC.sinatraMainClass):
 		testArray = testArray + 5000;
 		return matrixX, testArray, (rowControl - 1);
 
-	def extractFeatures(self, tokken):
+	def extractFeatures(self, tokken, freq):
 		import sinatraFilter as sF;
 		import numpy as np;
+		from python_speech_features import mfcc;
+		import math;
 		filterBox = sF.sinatraFiltersBox();
-		wS = int(len(tokken) / 10);
-		featureVector = list();
-		featureBox = {};
-		featureBox['mean'] = np.mean(tokken);
-		featureBox['std'] = np.std(tokken);
-		featureBox['len'] = len(tokken)
-		featureBox['meanPositive'] = np.mean(tokken[tokken > 0]);
-		featureBox['meanNegative'] = np.mean(tokken[tokken < 0]);
-		x, featureBox['XmaxFilter'] = filterBox.filterMaxInWindow(tokken, wS);
-		x, featureBox['XsoftMaxFilter'] = filterBox.softenedMaxWindow(tokken,wS);
-		x, featureBox['XmeanLogAvWindow'] = filterBox.sumAbsWindow(tokken,wS);
-		for fkeys, feature in sorted(featureBox.items()):
-			if fkeys[0]=='X':
-				for intIter in feature:
-					featureVector.append(intIter);
-			else:
-				featureVector.append(feature);
+		featureVector = np.zeros(130);
+
+		melCepstrum = mfcc(tokken, freq);
+	
+		for fIter in range(len(melCepstrum[0,:])):
+			cR = melCepstrum[:,fIter];
+			acy = filterBox.averageMFCC(cR, 10);
+			
+				
+			featureVector[(fIter*10):(fIter+1)*10]=acy[:];
 		return featureVector;

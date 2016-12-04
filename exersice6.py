@@ -1,4 +1,4 @@
-#!/anaconda3/bin/ipython3
+#!/home/charizard/anaconda3/bin/ipython3
 # Bruno Cuevas Zuviria
 # Sinatra. Exersice 6.
 #
@@ -29,7 +29,7 @@ try:
 except IndexError:
 	pass;
 audioFile = (audioFile - np.mean(audioFile))/np.std(audioFile);
-wS = 700;
+wS = 800;
 x,y,n = filter.entropyInWindow(audioFile, wS);
 statusStart = 0;
 for sIter in range(len(audioFile)):
