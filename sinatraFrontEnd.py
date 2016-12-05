@@ -3,7 +3,7 @@ class sinatraFrontEnd(sMC.sinatraMainClass):
 	def __init__(self):
 		import numpy as np;
 		self._sinatraMainClass__className = 'sinatraAudio';
-		self.__trainingRows = np.zeros((1,130)); 
+		self.__trainingRows = np.zeros((1,60)); 
 		self.__trainingClass = np.zeros((1,1));
 	def gatherTrainData(self, aD):
 		import numpy as np;
@@ -31,7 +31,7 @@ class sinatraFrontEnd(sMC.sinatraMainClass):
 		import numpy as np;
 		f = open(name, 'w+');
 		head="";
-		for iter in range(130):
+		for iter in range(60):
 			head=head+"s{0}\t".format(iter);
 		head=head+"class\n";
 		f.write(str(head));
@@ -39,8 +39,8 @@ class sinatraFrontEnd(sMC.sinatraMainClass):
 		f = open(name, 'ab');
 		for iter in range(len(self.__trainingRows)):
 			row2write = np.zeros(131);
-			row2write[0:130]=self.__trainingRows[iter];
-			row2write[130]	=self.__trainingClass[iter];
+			row2write[0:60]=self.__trainingRows[iter];
+			row2write[60]	=self.__trainingClass[iter];
 			np.savetxt(f,row2write.reshape(1,-1),fmt="%7.4f", delimiter="\t");
 		f.close();
 		return 1;
@@ -70,10 +70,6 @@ class sinatraFrontEnd(sMC.sinatraMainClass):
 			res1[iter] = self.__lR.predict(row2predict);
 		return res1;
 	def normalize(self, aD):
-		#
-		#
-		#
-		#
 		import sinatraIO;
 		import numpy as np;
 		aFAD = aD.getAudio();
@@ -91,7 +87,7 @@ class sinatraFrontEnd(sMC.sinatraMainClass):
 		wS = 700;
 		rowL = 10000;
 		rowControl = 1;
-		print("reading {0}".format(aD.getName()));
+		print("reading {0}".format(aD.getName()), end="\t");
 		freqVal = aD.getFreq();
 		self.normalize(aD);
 		aD = aD.getAudio();
@@ -103,13 +99,13 @@ class sinatraFrontEnd(sMC.sinatraMainClass):
 		yE,zE,nE = filterBox.entropyInWindow(aDClean, 1400);
 		del yE; del zE;
 		statusStart = 0;
-		matrixX = np.zeros(130);
+		matrixX = np.zeros(60);
 		testArray = np.zeros(2);
 		for sIter in range(2, len(aD)-3):
-			if statusStart == 0 and nE[sIter] >= 14:
+			if statusStart == 0 and nE[sIter] >= 15:
 				statusStart = 1;
 				start = int(sIter);
-			if statusStart == 1 and nE[sIter] < 14:
+			if statusStart == 1 and nE[sIter] < 15:
 				statusStart = 0;
 				minControl = 0;
 				maxControl = 0;
@@ -128,24 +124,16 @@ class sinatraFrontEnd(sMC.sinatraMainClass):
 								if (maxControl == 1) :
 									cutPoints=np.append(cutPoints,aCX[tIter]+start);
 									maxControl = 0;
-								else:
-									print("something weird took place...!");
 					cutPoints=np.append(cutPoints, end);
-					print(cutPoints);
 					for uIter in range(len(cutPoints)-1):
-						print("are we inside the loop");
 						currentPoints = np.array([cutPoints[uIter], cutPoints[uIter+1]]);
-						print("current points are {0} and {1}".format(currentPoints[0], currentPoints[1]));
 						tokkenLength = currentPoints[1]-currentPoints[0];
 						try:
 							tokkenRow = np.zeros(tokkenLength);
 						except ValueError:
-							print(tokkenLength);
 							exit;
 						tokkenRow = aDClean[int(currentPoints[0]):int(currentPoints[1])];
-
 						tokkenInfo = self.extractFeatures(tokkenRow, freqVal);
-						
 						tempTestArray = testArray;
 						rowControl = rowControl + 1;
 						testArray = np.zeros((rowControl, 2));
@@ -153,7 +141,7 @@ class sinatraFrontEnd(sMC.sinatraMainClass):
 						testArray[rowControl-1, 0] = currentPoints[0];
 						testArray[rowControl-1, 1] = currentPoints[1];
 						tempMatrixX = matrixX;
-						matrixX = np.zeros((rowControl, 130))
+						matrixX = np.zeros((rowControl, 60))
 						matrixX[0:(rowControl - 1), :] = tempMatrixX;
 						matrixX[(rowControl - 1), :] = tokkenInfo;
 						maxControl = 0;
@@ -178,9 +166,13 @@ class sinatraFrontEnd(sMC.sinatraMainClass):
 		from python_speech_features import mfcc;
 		import math;
 		filterBox = sF.sinatraFiltersBox();
-		featureVector = np.zeros(130);
+		featureVector = np.zeros(60);
 
 		melCepstrum = mfcc(tokken, freq);
+		melCepstrumTemp = melCepstrum;
+		del melCepstrum;
+		melCepstrum = melCepstrumTemp[:,0:6];
+		del melCepstrumTemp
 	
 		for fIter in range(len(melCepstrum[0,:])):
 			cR = melCepstrum[:,fIter];
