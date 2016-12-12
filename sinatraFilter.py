@@ -164,3 +164,26 @@ class sinatraFiltersBox(sMC.sinatraMainClass):
 				incUp	= int(inc*(iter+1));
 				vector[iter] = np.mean(mfcc[incDown:incUp]);
 			return vector;
+	def derivateSound(self, audio):
+		import numpy as np;
+		import math;
+		fD = np.zeros(len(audio));
+		for iter in range(1, len(audio)-1):
+			fD[iter]=(audio[iter+1]-audio[iter-1])/2;
+		return fD;
+	def autocorrelation(self,audio,domain):
+		import numpy as np;
+		import math;
+		import matplotlib.pyplot as plt;
+		audio = (audio - np.mean(audio))/np.std(audio);
+		y = np.copy(audio);
+		z = np.zeros(domain);
+		for iter in range(domain):
+			y = np.roll(y,shift=1);
+			y[0] =0;
+			z[iter]= np.sum(audio*y);
+		u = np.polyfit(np.arange(len(z)), z,1);
+		v = np.arange(len(z))*u[0] + u[1];
+		r2 = np.corrcoef(z,v)[0][1];
+		plt.plot(z); plt.plot(v,'--'); plt.show();
+		return z, r2;
