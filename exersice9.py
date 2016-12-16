@@ -9,14 +9,13 @@ inpath = sys.argv[1];
 expath = sys.argv[2];
 reader = sIO.sinatraIO(inpath);
 feWorker = sFE.sinatraFrontEnd();
-feWorker.loadNoiseClass('NM');
 reader.readTable();
-readerTester = sIO.sinatraIO('/home/charizard/Dropbox/UNIVERSIDAD/Master/Workshop/datasetTrial/testing.csv');
-readerTester.readTable();
+
+
 for aD in reader:
 	if aD == 0:
 		break;
 	else:
 		feWorker.gatherTrainData(aD);
-feWorker.writeTrainData(expath);
-
+feWorker.trainNoiseClass();
+feWorker.saveNoiseClass(expath);

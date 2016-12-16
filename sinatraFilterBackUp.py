@@ -85,9 +85,9 @@ class sinatraFiltersBox(sMC.sinatraMainClass):
 		mCY = np.zeros(len(aCY));
 		for iter in range(1,wN-1):
 			for preIter in range(iter):
-				mCY[iter] = mCY[iter] + (math.exp(0.5*(preIter - iter))*aCY[preIter]);
+				mCY[iter] = mCY[iter] + (math.exp(0.2*(preIter - iter))*aCY[preIter]);
 			for postIter in range(iter, len(mCY)):
-				mCY[iter] = mCY[iter] + (math.exp(0.5*(iter - postIter))*aCY[postIter]);
+				mCY[iter] = mCY[iter] + (math.exp(0.2*(iter - postIter))*aCY[postIter]);
 		return aCX, mCY;
 	def entropyInWindow(self, audioArray, wS):
 		import numpy as np;
@@ -150,40 +150,3 @@ class sinatraFiltersBox(sMC.sinatraMainClass):
 		cCX = (aCX + bCX)/2;
 		cCY = (aCY + bCY)/2;
 		return cCX, cCY;
-	def averageMFCC(self, mfcc, parts):
-		import numpy as np;
-		import math;
-		inc = len(mfcc)/parts;
-		vector = np.zeros(parts);
-		if len(mfcc) < parts:
-			vector[:(len(mfcc))]=mfcc;
-			return vector;
-		else:
-			for iter in range(parts):
-				incDown = int(inc * iter);
-				incUp	= int(inc*(iter+1));
-				vector[iter] = np.mean(mfcc[incDown:incUp]);
-			return vector;
-	def derivateSound(self, audio):
-		import numpy as np;
-		import math;
-		fD = np.zeros(len(audio));
-		for iter in range(1, len(audio)-1):
-			fD[iter]=(audio[iter+1]-audio[iter-1])/2;
-		return fD;
-	def autocorrelation(self,audio,domain):
-		import numpy as np;
-		import math;
-		import matplotlib.pyplot as plt;
-		audio = (audio - np.mean(audio))/np.std(audio);
-		y = np.copy(audio);
-		z = np.zeros(domain);
-		for iter in range(domain):
-			y = np.roll(y,shift=1);
-			y[0] =0;
-			z[iter]= np.sum(audio*y);
-		u = np.polyfit(np.arange(len(z)), z,1);
-		v = np.arange(len(z))*u[0] + u[1];
-		r2 = np.corrcoef(z,v)[0][1];
-		#plt.plot(z); plt.plot(v,'--'); plt.show();
-		return z, r2;
