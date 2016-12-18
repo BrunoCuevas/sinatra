@@ -17,12 +17,15 @@ class sinatraAudio(sMC.sinatraMainClass):
 		return (self.__freq);
 	def modAudio(self, aD):
 		self.__audio = aD;
-	def includeCoocurrenceInfo(self, cooc):
+	def includeCoocurrenceInfo(self, cooc, tokkenSystem):
 		import sinatraCoocurrence as sC;
+		coocurrator = sC.sinatraCoocurrence(tokkenSystem);
+		self.__cooc = coocurrator.calculateCooc(cooc);
+		return 1;
 	def isCoocDefined(self):
 		if self.__cooc == None:
 			return False;
 		else:
 			return True;
-	def getCoocurrenceInfo(self,cooc):
-		return CoocurrenceInfo;
+	def getCoocurrenceInfo(self):
+		return self.__cooc;

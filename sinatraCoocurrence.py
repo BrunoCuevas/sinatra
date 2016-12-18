@@ -2,29 +2,45 @@
 import sinatraMainClass as sMC;
 class sinatraCoocurrence(sMC.sinatraMainClass):
 	def __init__(self, system):
-		import sinatraTokkenSystem;
+		import sinatraTokkenSystem as sTS;
 		import numpy as np;
 		self.__name = 'sinatraCoocurrence';
-		if type(system) == sinatraTokkenSystem:
+		print(type(system));
+		if type(system) == sTS.sinatraTokkenSystem:
 			self.__system = system;
-			self.__coocMatrix = np.zerosi((system.size, system.size));
+			self.__coocMatrix = np.zeros((system.getSize(), system.getSize()));
 			self.__symbols = system.getSymbols();
+			self.__dictionary = system.getDictionary();
+		else:
+			print("error : Not a sinatratokkenSystem");
 	def getSystem(self):
 		return self.__system.getName();
-	def calculateCooc(self,ocArray):
-		dictioSymbol = {};
-		for iter in range(len(ocArray)):
-			if ocArray[iter] in self.__symbols:
-				if ocArray[iter] in dictioSymbol.keys():
-					dictioSymbol[str(ocArray[iter])] = dictioSymbol[str(ocArray[iter])] + 1;
-				else:
-					dictioSymbol[str(ocArray[iter])] = 1;
+	def calculateCooc(self, ocArray):
+		import numpy as np;
+		dictioSymbol = self.__dictionary;
+		for iter in range(len(ocArray)-1):
+			if ocArray[iter] == "-":
+				continue;
 			else:
-				print("print : character {0}  out of the symbol system we are using".format(str(ocArray[iter])));
-		matrix = np.zeros((len(dictioSymbol.keys()), len(dictioSymbol.keys())));
+				curr=ocArray[iter]
+				foll=ocArray[iter+1]
+				try :
+					dictioSymbol[str(curr) + str(foll)] = dictioSymbol[str(curr) + str(foll)] +1;
+				except KeyError:
+					print("error. Tokken {0} out of system".format(str(curr)+str(foll)));
+		matrixB = np.zeros((len(dictioSymbol.keys()), len(dictioSymbol.keys())));
+		iX = 0;
+		iY = 0;
 		for iter1 in sorted(dictioSymbol.keys()):
 			for iter2 in sorted(dictioSymbol.keys()):
-				matrix[iter1,iter2]= dictioSymbol[iter1]*dictioSymbol[iter2];
-		self.__Cooc = matrix;
-		return 1;
-	
+				matrixB[iX,iY]= dictioSymbol[iter1]*dictioSymbol[iter2];
+				iY = iY + 1;
+			iX = iX + 1;
+			iY = 0;
+		v = np.linalg.eig(matrixB)
+		vector = np.zeros((len(v[0])));
+		for iter1 in range (len(v[0])):
+			vector[iter1]=v[1][iter1][np.argmax(v[0])]
+
+		return vector;
+

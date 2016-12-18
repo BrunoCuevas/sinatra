@@ -14,7 +14,7 @@ try:
 except IndexError:
 	pass;
 worker = sFE.sinatraFrontEnd();
-worker.loadNoiseClass('NM');
+#worker.loadNoiseClass('XNM');
 filterer = sF.sinatraFiltersBox();
 x = sA.sinatraAudio(audio=audio, freq=freq, languageClass=1, name='x');
 matrixFeatures, coords, ncol = worker.segmentate(x);

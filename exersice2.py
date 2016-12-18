@@ -9,7 +9,7 @@ inpath = sys.argv[1];
 expath = sys.argv[2];
 reader = sIO.sinatraIO(inpath);
 feWorker = sFE.sinatraFrontEnd();
-feWorker.loadNoiseClass('NM');
+#feWorker.loadNoiseClass('XNM');
 reader.readTable();
 readerTester = sIO.sinatraIO('/home/charizard/Dropbox/UNIVERSIDAD/Master/Workshop/datasetTrial/testing.csv');
 readerTester.readTable();

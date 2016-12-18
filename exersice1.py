@@ -1,44 +1,40 @@
+#!/home/charizard/anaconda3/bin/ipython3
 import   sinatraIO as sIO;
 import  sinatraFrontEnd as sFE;
+import sinatraTokkenSystem as sTS;
 import numpy as np;
 import matplotlib.pyplot as plt;
 from sklearn.neural_network import MLPClassifier;
-path = '/home/charizard/Documents/LRS/Dataset/tablaNombres.csv';
+from sklearn.linear_model import LogisticRegression;
+import sys;
+path = sys.argv[1];
 reader = sIO.sinatraIO(path);
-feWorker = sFE.sinatraFrontEnd();
+tokkenSystem = sTS.sinatraTokkenSystem('abc');
+tokkenSystem.createDictionary();
+#print(type(tokkenSystem));
+feWorker = sFE.sinatraFrontEnd(tokkenSystem);
+feWorker.loadModel('XLR','XMLP');
+feWorker.loadNoiseClass('XNM');
 reader.readTable();
-#for iter in range(10):
-
-# for z in range(1,10):
-# 	audio1 = next(reader);
-# 	x = audio1.getAudio();
-# 	matrix, testArray, nTokkens = feWorker.segmentate(audio1);
-# 	for iter in range(len(testArray)):
-# 		y = np.zeros(len(x));
-# 		y[testArray[iter,0]:testArray[iter,1]] = x[testArray[iter,0]:testArray[iter,1]];
-# 		plt.plot(y, label="x->{0}".format(iter));
-# 	plt.show();
-
-
-#err = feWorker.gatherTrainData(audio1);
-err = feWorker.trainModel();
-testAudio = next(reader);
+confussionMatrix1 = np.zeros((4,3));
+confussionMatrix2 = np.zeros((4,3));
 for audio1 in reader:
 	if audio1 == 0:
 		break;
 	else:
-		err = feWorker.gatherTrainData(audio1);
+		class_ = audio1.getlClass();
+		answer1,answer2 = feWorker.predict(audio1);
+		for iter in answer1:
+			print("iter = {0}".format(iter));
+			confussionMatrix1[class_, iter] = confussionMatrix1[class_,iter] + 1;
+		for iter in answer2:
+			confussionMatrix2[class_, iter] = confussionMatrix2[class_,iter] + 1;
 		print("completed");
-data, class_ = feWorker.getTrainData();
-nn = MLPClassifier(solver='lbgfs', alpha=1e-5,
-hidden_layer_sizes=(10,), random_state=1);
-nn.fit(data, class_);
-x,y,z = feWorker.segmentate(testAudio);
-res = np.zeros(z);
-for iter in range(z):
-	j = x[iter,:]
-	j = j.reshape(1,-1)
-	a = nn.predict(j);
-	res[iter]=a;
-	print("row iter : {0}".format(a));
-print("0={0}, 1={1}, 2={2}".format(sum(res==0)/z, sum(res==1)/z, sum(res==2)/z));
+print("CONFUSSION MATRIX LR  -> ");
+print("\t{0}".format(confussionMatrix1));
+print("CONFUSSION MATRIX MLP -> ");
+print("\t{0}".format(confussionMatrix2));
+#feWorker.trainModel();
+#feWorker.saveModel('LOG', 'NEURAL');
+#feWorker.loadModel('LOG', 'NEURAL');
+

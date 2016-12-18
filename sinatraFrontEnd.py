@@ -8,11 +8,7 @@ class sinatraFrontEnd(sMC.sinatraMainClass):
 		self._sinatraMainClass__className = 'sinatraAudio';
 		self.__trainingRows = np.zeros((1,OUTPUTSIZE)); 
 		self.__trainingClass = np.zeros((1,1));
-		if not (referenceSystem == None):
-			if type(referenceSystem) == sTS.sinatraTokkenSystem:
-				self.__system = sinatraTokkenSystem;
-			else:
-				print("error: a valid sinatra Tokken System was needed!");
+		self.__tokkenSystem = referenceSystem;
 	def gatherTrainData(self, aD):
 		import numpy as np;
 		trainMatrix , thing1, thing2= self.segmentate(aD);
@@ -55,28 +51,82 @@ class sinatraFrontEnd(sMC.sinatraMainClass):
 	def trainModel(self):
 		#from sklearn.neural_network import MLPClassifier;
 		from sklearn import linear_model;
+		from sklearn.neural_network import MLPClassifier;
 		print("creating nn");
-		##nn = MLPClassifier(solver='lbgfs', alpha=1e-5, hidden_layer_sizes=(10,), random_state=1);
-		lR = linear_model.LogisticRegression(C=1e5);
+		lR = linear_model.LogisticRegression(C=1e-8,max_iter=10000);
+		mP = MLPClassifier(alpha=1e-5, solver ='lbgfs', random_state=14, max_iter=10000)
 		print("starting training");
-		#nn.fit(self.__trainingRows, self.__trainingClass);
+		mP.fit(self.__trainingRows, self.__trainingClass);
 		lR.fit(self.__trainingRows, self.__trainingClass);
 		print("finishing training");
 		self.__lR = lR;
+		self.__mP = mP;
 		return 1;
+	def saveModel(self, filename1, filename2):
+		from sklearn.externals import joblib;
+		try:
+			joblib.dump(self.__lR,filename1);
+		except AttributeError:
+			print("Logistic Regression Classifier hasn't been trained!");
+			return 0;
+		try:
+			joblib.dump(self.__mP,filename2);
+		except AttributeError:
+			print("Multiperceptron hasn't been trained!");
+			return 0;
+		return 1;
+	def loadModel(self, filename1, filename2):
+		from sklearn.externals import joblib;
+		from sklearn.linear_model import LogisticRegression;
+		from sklearn.neural_network import MLPClassifier;
+		lR = joblib.load(filename1);
+		if type(lR) == LogisticRegression:
+			self.__lR = lR;
+		else:
+			print("Not a LogisticRegression object");
+			return 0;
+		mP = joblib.load(filename2);
+		if type(mP) == MLPClassifier:
+			self.__mP = mP;
+		else:
+			print("Not a MLP Classifier object");
+			return 0;
 	def predict(self, aD):
+		import sinatraTokkenSystem as sTS;
 		import numpy as np;
-		predictMatrix, thing1, thing2 = self.segmentate(aD);
+		# Obtain Spectral Density
+		predictMatrix, x1, x2= self.segmentate(aD);
+		del x1; del x2;
+		# Control Matrix
 		try :
 			lenPredict = len(predictMatrix[:,0]);
 		except TypeError:
 			lenPredict = len(predictMatrix);
 		res1 = np.zeros(lenPredict);
+		res2 = np.zeros(lenPredict);
+		# Predict elements within tokken
 		for iter in range(lenPredict):
 			row2predict = predictMatrix[iter,:];
 			row2predict = row2predict.reshape(1,-1);
-			res1[iter] = self.__lR.predict(row2predict);
-		return res1;
+			#resLR_p = self.__lR.predict_proba(row2predict);
+			#resMP = self.__mP.predict(row2predict);
+			resLR = self.__lR.predict(row2predict);
+			resMP = self.__mP.predict(row2predict);
+			res1[iter] = resLR;
+			res2[iter] = resMP;
+		try :
+			system = self.__tokkenSystem.getSymbols();
+		except AttributeError:
+			print("Tokken system is undefined");
+			return 0;
+		cooc = '';
+		for iter in range(len(res1)):
+			if res1[iter] > 0 :
+				cooc = cooc + system[int(res1[iter]-1)];
+			elif res1[iter] == 0:
+				cooc = cooc + '-';
+		aD.includeCoocurrenceInfo(cooc, self.__tokkenSystem);
+		return res1,res2;
 	def normalize(self, aD):
 		import sinatraIO;
 		import numpy as np;
@@ -141,17 +191,8 @@ class sinatraFrontEnd(sMC.sinatraMainClass):
 								if (maxControl == 1) :#and (derControl == 1) :
 									cutPoints=np.append(cutPoints,aCX[tIter]+start);
 									maxControl = 0;
-									#derControl = 0;
-					# this part must be removed. Its purpose is to find the
-					# noisy patterns which are detected as min-max-min within
-					# the amplitude-time values. The main feature it that all
-					# points within those patterns has a more-or-less
-					# similar values to the previous values. So the key is to
-					# detect the autocorrelation.
-					#if yF[tIter]>0 and derControl == 0:
-					#		print("der Control -> 1 within {0} : {1}".format(start,end));
-					#		derControl = 1;
-					#if derControl == 1:
+									
+
 					cutPoints=np.append(cutPoints, end);
 					for uIter in range(len(cutPoints)-1):
 						currentPoints = np.array([cutPoints[uIter], cutPoints[uIter+1]]);
@@ -202,49 +243,21 @@ class sinatraFrontEnd(sMC.sinatraMainClass):
 		filterBox = sF.sinatraFiltersBox();
 	
 		# spectral density based feature extraction model
-		
+		#plt.plot(tokken); plt.show();
 		autocorr, z1 = filterBox.autocorrelation(tokken, 200);
+		#plt.plot(autocorr); plt.show();
 		spectralDensity = np.abs(np.fft.fft(autocorr));
 		spectralDensity = spectralDensity[:100];
+		#plt.plot(spectralDensity); plt.show();
 		try :
-			cL = self.__noiseClass.predict(spectralDensity);
+			cL = self.__noiseClass.predict(spectralDensity.reshape(1,-1));
 		except AttributeError:
 			return spectralDensity;
 		if cL == 1:
 			return spectralDensity;
 		else:
 			return None;
-		#acy = filterBox.firstDerivative(spectralDensity);
-		#dcy = filterBox.secondDerivative(spectralDensity);
-		#peakList = np.zeros((OUTPUTSIZE/2,2));
-		#if all(acy <= 0):
-		#	plt.plot(spectralDensity); plt.show();
-		#counter = 0;
-		# OK, THIS IS F***** IMPORTANT ! 
-		#return spectralDensity;
-		#plt.plot(spectralDensity); plt.show()
-		#if spectralDensity[0] > spectralDensity[1]:
-		#	peakList[0,0] = 0;
-		#	peakList[0,1] = spectralDensity[0];
-		#	counter = counter + 1;
-		#for iter in range(1,len(spectralDensity)-1):
-		#	if acy[iter]*acy[iter+1] < 0:
-		#		if dcy[iter] < 0:
-		#			peakList[counter,0] = iter;
-		#			peakList[counter,1] = spectralDensity[iter];
-		#			counter = counter + 1;
-		#			if counter == 10:
-		#				break;
-		#
-		#peakList =  self.sortPeaks(peakList);
-		#if sum(peakList[:,0])==0:
-		#	return None;
-		
-		#retList=  np.zeros(OUTPUTSIZE);
-		#for iter in range(len(peakList[:,0])):
-		#	retList[(iter*2)] = peakList[iter,0];
-		#	retList[(iter*2)+1] = peakList[iter,1];
-		#return retList;
+
 	def sortPeaks(self, peakList):
 		import numpy as np;
 		if len(peakList[:,0]) > 2:
@@ -276,7 +289,7 @@ class sinatraFrontEnd(sMC.sinatraMainClass):
 
 	def trainNoiseClass(self):
 		from sklearn.linear_model import LogisticRegression;
-		lRClass = LogisticRegression(solver='sag', max_iter = 100);
+		lRClass = LogisticRegression(max_iter = 5000, C=1e5);
 		lRClass.fit(self.__trainingRows, self.__trainingClass);
 		self.__noiseClass = lRClass;
 		return 1;		
